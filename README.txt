@@ -102,3 +102,6 @@ As noted in the original implementation:
 - The MinHash method provides a fast approximation to Jaccard similarity
 
 The program includes timing information for each major step to help analyze performance.
+
+Run command below to create a zip folder to submit assignment
+Compress-Archive -Path RunMinHashExample.java,RunMinHashExample.class,runMinHashExample.py,README.txt,report.tex,report.pdf,data -DestinationPath hw5.zip

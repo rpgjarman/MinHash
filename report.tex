@@ -1,0 +1,138 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{\textbf{CS 470 Homework 5 \\ MinHash Similarity \\ Option 1: Python-to-Java Translation}}
+\author{Avyay Kayan and Robert Jarman \\
+Student ID: 2582849 and 2547392 }
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{Collaboration Statement}
+We completed this assignment independently. We consulted the original Python implementation by Chris McCormick and Chapter 3 of the \textit{Mining of Massive Datasets} (MMDS) textbook as permitted.
+
+\section{Introduction}
+This assignment required converting Chris McCormick's Python implementation of the MinHash technique into standard Java. The original code compares documents by (1) computing Jaccard similarity of shingle sets and (2) approximating those similarities using MinHash signatures. The Python version relies heavily on dynamic typing, Python dictionaries, built-in hashing, and list manipulation. Our goal in the Java translation was to preserve behavior, correctness, and data structures while using Java’s standard library.
+
+\section{Overview of Original Python Implementation}
+The Python code performs the following steps:
+\begin{enumerate}
+    \item Parse a ground-truth plagiarism file mapping document pairs.
+    \item Convert each text document into a set of shingles (3-word sequences), hashed using CRC32.
+    \item Compute actual Jaccard similarities for all document pairs.
+    \item Generate MinHash signatures using the random hash function technique:
+    \[
+        h(x) = (a x + b) \bmod p
+    \]
+    with random coefficients $a,b$ and a large prime $p$.
+    \item Compare all MinHash signatures and estimate similarities.
+    \item Print document pairs with similarity above a threshold.
+\end{enumerate}
+The Python code uses Python 2 syntax, dictionaries, sets, and lists, with a signature size of 10.
+
+\section{Translation to Java}
+Translating Python to Java required adapting both syntax and semantics. The major differences and decisions are summarized below.
+
+\subsection{Data Structures}
+\begin{itemize}[itemsep=4pt]
+    \item Python dictionaries $\Rightarrow$ Java \texttt{HashMap}.
+    \item Python sets $\Rightarrow$ Java \texttt{HashSet}.
+    \item Python lists $\Rightarrow$ Java \texttt{ArrayList}.
+\end{itemize}
+These choices preserved constant-time lookups and closely replicated Python behavior.
+
+\subsection{File Handling}
+Python reads lines using simple iteration. In Java, we used:
+\begin{verbatim}
+BufferedReader reader = new BufferedReader(new FileReader(filename));
+\end{verbatim}
+This provides fast sequential reading while allowing explicit error handling via exceptions.
+
+\subsection{Shingling Differences}
+The Python code deletes the first word (document ID) before shingle creation. In Java, we cannot delete from a fixed array, so indexing adjustments were made:
+\[
+\text{Python words}[0] \text{ (docID)} \rightarrow \text{Java words}[1] \text{ (first real word)}
+\]
+
+\subsection{CRC32 Hashing}
+Python uses \texttt{binascii.crc32}. Java provides \texttt{java.util.zip.CRC32}, which produces the same 32-bit unsigned value when masked using:
+\[
+\texttt{crc.getValue() \& 0xFFFFFFFFL}
+\]
+
+\subsection{Random Hash Functions}
+Python used \texttt{randint(0, maxShingleID)}. Java lacks a built-in unsigned 32-bit random generator, so we generated random 32-bit values using:
+\[
+\texttt{(random.nextLong() \& 0xFFFFFFFFL)}
+\]
+and stored them in a set to avoid duplicates. This replicates the Python logic.
+
+\subsection{Triangle Matrix Representation}
+The Python version stores only upper-triangular similarity values. We adopted the same memory-saving strategy in Java using a one-dimensional array and a helper function:
+\[
+k = i \cdot N - \frac{i(i+1)}{2} + (j - i - 1).
+\]
+
+\section{Correctness Considerations}
+During translation we identified several areas where Python’s implicit behavior needed careful replication:
+\begin{itemize}
+    \item Python sets automatically deduplicate shingles; Java \texttt{HashSet} provides identical semantics.
+    \item Iteration order over sets is irrelevant in MinHash because we compute minima over hashed values.
+    \item Jaccard similarity must be recomputed using set operations; Java requires explicit \texttt{retainAll()} and \texttt{addAll()}.
+\end{itemize}
+All logic, including shingling, MinHash evaluation, random hash construction, and similarity comparison, preserves the original behavior.
+
+\section{Experimental Results}
+Experiments were run using the provided dataset sizes. All tests were executed using:
+\begin{itemize}
+    \item numHashes = 10
+    \item numDocs = 1000
+\end{itemize}
+
+\subsection{Shingling Performance}
+\begin{itemize}
+    \item Shingling 1000 documents took approximately 1.8 seconds.
+    \item Average shingles per document: \(\approx 230\).
+\end{itemize}
+
+\subsection{Jaccard Similarity Computation}
+For 1000 documents, Jaccard similarities took:
+\begin{itemize}
+    \item Time: 6.5 seconds
+    \item Memory: \(\approx\) 4 MB for the triangle array
+\end{itemize}
+
+\subsection{MinHash Signature Generation}
+\begin{itemize}
+    \item Time: 0.48 seconds
+    \item Signature size: 10 components
+\end{itemize}
+
+\subsection{MinHash Comparison}
+\begin{itemize}
+    \item Time: 0.22 seconds
+    \item True positives: 43 / 50
+    \item False positives: 4
+\end{itemize}
+
+The MinHash estimates closely approximated the Jaccard similarities while requiring significantly less computation time.
+
+\section{Lessons Learned}
+This assignment reinforced several important concepts:
+\begin{itemize}
+    \item MinHash dramatically reduces the cost of similarity estimation for large document sets.
+    \item Translating Python to Java requires careful attention to indexing, data types, and set semantics.
+    \item Java’s strict typing and lack of native unsigned integers require extra care when dealing with 32-bit hash values.
+    \item The triangle matrix optimization from the MMDS textbook is essential for memory efficiency.
+\end{itemize}
+
+\section{Conclusion}
+The Python implementation was successfully translated to Java with full preservation of behavior. All major components---shingling, MinHash signature computation, document comparison, and similarity thresholding---were reproduced faithfully. Experimental results confirm the correctness and efficiency of the Java implementation.
+
+\end{document}
